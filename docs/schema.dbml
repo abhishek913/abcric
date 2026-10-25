@@ -1,0 +1,109 @@
+Enum extra_type {
+  none
+  wide
+  no_ball
+  bye
+  leg_bye
+}
+
+Enum official_role {
+  on_field
+  third_umpire
+  match_referee
+}
+
+Enum toss_decision {
+  bat
+  bowl
+}
+
+Table team {
+  team_id varchar [pk]
+  name varchar
+  // removed player[]: the link lives in squad now
+}
+
+Table player {
+  player_id varchar [pk]
+  name varchar
+  batting_style varchar
+  bowling_style varchar
+  // removed team: a player can be in many teams, so use squad
+}
+
+// many-to-many: Team <-> Player
+Table squad {
+  team_id varchar [ref: > team.team_id]
+  player_id varchar [ref: > player.player_id]
+}
+
+Table match {
+  match_id varchar [pk]
+  venue varchar
+  date date
+  // two teams = two single columns, not teams[]
+  team_a_id varchar [not null, ref: > team.team_id]
+  team_b_id varchar [not null, ref: > team.team_id]
+  toss_winner_id varchar [ref: > team.team_id]
+  toss_decision toss_decision
+  // removed officials[] and innings[]: the other side points here
+}
+
+Table official {
+  official_id varchar [pk]
+  name varchar
+  // removed is_on_field / is_off_field: role is per match
+}
+
+// many-to-many: Match <-> Official
+Table match_official {
+  match_id varchar [ref: > match.match_id]
+  official_id varchar [ref: > official.official_id]
+  role official_role
+}
+
+Table innings {
+  innings_id varchar [pk]
+  match_id varchar [not null, ref: > match.match_id]  // the many side holds the link
+  batting_team_id varchar [not null, ref: > team.team_id]
+  sequence int
+  // removed deliveries[]: each delivery points here instead
+}
+
+Table delivery {
+  delivery_id varchar [pk]
+  innings_id varchar [not null, ref: > innings.innings_id]
+  sequence int          // goes up for every ball, including wides
+  over_number int
+  bowler_id varchar [not null, ref: > player.player_id]
+  batter_id varchar [not null, ref: > player.player_id]
+  non_striker_id varchar [not null, ref: > player.player_id]
+  runs_off_bat int
+  extra_type extra_type // replaces the two booleans
+  extra_runs int
+  dismissal_type varchar           // empty if no wicket
+  dismissed_player_id varchar [ref: > player.player_id]
+  fielder_id varchar [ref: > player.player_id]
+}
+
+Table scorer {
+  scorer_id varchar [pk]
+  name varchar
+}
+
+Table match_scorer {
+  match_id varchar [not null, ref: > match.match_id]
+  scorer_id varchar [not null, ref: > scorer.scorer_id]
+}
+
+Table playing_xi {
+  match_id varchar [not null, ref: > match.match_id]
+  player_id varchar [not null, ref: > player.player_id]
+  team_id varchar [not null, ref: > team.team_id]
+  is_captain boolean
+  is_wicketkeeper boolean
+
+   indexes {
+    (match_id, player_id) [pk]
+  }
+
